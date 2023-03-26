@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
+	"net/http"
 	"time"
 )
 
@@ -30,7 +30,33 @@ func shorten(url string) string {
 }
 
 func main() {
-	shortenKey := shorten("http://google.com")
-	fmt.Println(shortenKey)
-	fmt.Println(getOriginalUrl(shortenKey))
+	http.HandleFunc("/short", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("only get request supported"))
+			return
+		}
+		url := r.URL.Query().Get("url")
+		if url == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("need a url to short"))
+			return
+		}
+		key := shorten(url)
+		toClickURL := "localhost:8080/long?key=" + key
+		w.Write([]byte(toClickURL))
+	})
+
+	http.HandleFunc("/long", func(w http.ResponseWriter, r *http.Request) {
+		key := r.URL.Query().Get("key")
+		if key == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("need a url to short"))
+			return
+		}
+		url := getOriginalUrl(key)
+		w.Write([]byte(url))
+	})
+
+	http.ListenAndServe(":8080", nil)
 }
